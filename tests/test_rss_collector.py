@@ -42,6 +42,33 @@ def test_fetch_feed_articles_bozo_raises():
         pass
 
 
+def test_fetch_feed_articles_bozo_with_entries_returns_articles():
+    parsed = _FakeParsed(
+        [_FakeEntry(title="記事A", link="https://example.com/a", published=None)],
+        bozo=True,
+    )
+    feed = {"name": "Quirky Feed", "url": "https://example.com/quirky.xml", "category_hint": "ai"}
+
+    result = fetch_feed_articles(feed, parse_fn=lambda url: parsed)
+
+    assert len(result) == 1
+    assert result[0].url == "https://example.com/a"
+
+
+def test_fetch_feed_articles_skips_entries_without_link():
+    parsed = _FakeParsed([
+        _FakeEntry(title="リンクなし", link="", published=None),
+        _FakeEntry(title="linkキーなし", published=None),
+        _FakeEntry(title="リンクあり", link="https://example.com/ok", published=None),
+    ])
+    feed = {"name": "Mixed Feed", "url": "https://example.com/mixed.xml", "category_hint": None}
+
+    result = fetch_feed_articles(feed, parse_fn=lambda url: parsed)
+
+    assert [a.url for a in result] == ["https://example.com/ok"]
+    assert all(a.url for a in result)
+
+
 def test_collect_rss_articles_skips_failing_feed(caplog):
     good_parsed = _FakeParsed([_FakeEntry(title="OK記事", link="https://example.com/ok", published=None)])
 

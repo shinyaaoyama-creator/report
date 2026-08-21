@@ -9,20 +9,29 @@ logger = logging.getLogger(__name__)
 
 def fetch_feed_articles(feed: dict, parse_fn=feedparser.parse) -> list[Article]:
     parsed = parse_fn(feed["url"])
-    if getattr(parsed, "bozo", False):
+    # feedparser sets bozo=1 for many non-fatal issues (encoding quirks, minor
+    # XML defects) while still populating entries correctly; only treat it as a
+    # failure when there is nothing usable to show.
+    if getattr(parsed, "bozo", False) and not getattr(parsed, "entries", None):
         raise ValueError(f"failed to parse feed: {feed['url']}")
 
-    return [
-        Article(
-            title=entry.get("title", ""),
-            url=entry.get("link", ""),
-            source="rss",
-            source_name=feed["name"],
-            category_hint=feed.get("category_hint"),
-            published_at=entry.get("published"),
+    articles: list[Article] = []
+    for entry in parsed.entries:
+        link = entry.get("link")
+        if not link:
+            logger.warning("skipping entry without link in feed=%r", feed.get("name"))
+            continue
+        articles.append(
+            Article(
+                title=entry.get("title", ""),
+                url=link,
+                source="rss",
+                source_name=feed["name"],
+                category_hint=feed.get("category_hint"),
+                published_at=entry.get("published"),
+            )
         )
-        for entry in parsed.entries
-    ]
+    return articles
 
 
 def collect_rss_articles(feeds: list[dict], parse_fn=feedparser.parse) -> list[Article]:
