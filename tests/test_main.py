@@ -1,0 +1,87 @@
+import json
+
+from src.collector import main as main_module
+from src.collector.models import Article
+
+
+def _setup_configs(tmp_path):
+    keywords_path = tmp_path / "keywords.yaml"
+    keywords_path.write_text("seo:\n  - test\n", encoding="utf-8")
+    feeds_path = tmp_path / "feeds.yaml"
+    feeds_path.write_text("[]\n", encoding="utf-8")
+    state_path = tmp_path / "seen_articles.json"
+    state_path.write_text("{}\n", encoding="utf-8")
+    return {
+        "keywords": str(keywords_path),
+        "feeds": str(feeds_path),
+        "state": str(state_path),
+    }
+
+
+def test_run_dry_run_does_not_post_or_save_state(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    monkeypatch.setattr(
+        main_module,
+        "collect_search_articles",
+        lambda keywords, api_key, cse_id: [Article(title="A", url="https://example.com/a", source="search", source_name="s")],
+    )
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+    monkeypatch.setattr(
+        main_module,
+        "summarize_and_classify",
+        lambda articles, client: [
+            Article(title=a.title, url=a.url, source=a.source, source_name=a.source_name, summary="要約", category="seo")
+            for a in articles
+        ],
+    )
+
+    posted = {"called": False}
+    monkeypatch.setattr(main_module, "post_to_slack", lambda blocks, url: posted.update(called=True))
+
+    blocks = main_module.run(
+        config_paths,
+        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), "slack_webhook_url": "https://hooks.slack.com/x"},
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=True,
+    )
+
+    assert posted["called"] is False
+    assert any("要約" in b.get("text", {}).get("text", "") for b in blocks if b["type"] == "section")
+
+    state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
+    assert state_after == {}
+
+
+def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    monkeypatch.setattr(
+        main_module,
+        "collect_search_articles",
+        lambda keywords, api_key, cse_id: [Article(title="A", url="https://example.com/a", source="search", source_name="s")],
+    )
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+    monkeypatch.setattr(
+        main_module,
+        "summarize_and_classify",
+        lambda articles, client: [
+            Article(title=a.title, url=a.url, source=a.source, source_name=a.source_name, summary="要約", category="seo")
+            for a in articles
+        ],
+    )
+
+    posted = {"called": False}
+    monkeypatch.setattr(main_module, "post_to_slack", lambda blocks, url: posted.update(called=True))
+
+    main_module.run(
+        config_paths,
+        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), "slack_webhook_url": "https://hooks.slack.com/x"},
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=False,
+    )
+
+    assert posted["called"] is True
+
+    state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
+    assert "https://example.com/a" in state_after
