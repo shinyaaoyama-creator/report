@@ -1,1 +1,150 @@
-[]
+- name: '"claude code" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=claude%20code&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"エンプラ開拓" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E3%82%A8%E3%83%B3%E3%83%97%E3%83%A9%E9%96%8B%E6%8B%93&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"PR戦略" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=PR%E6%88%A6%E7%95%A5&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"指名検索" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E6%8C%87%E5%90%8D%E6%A4%9C%E7%B4%A2&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"人的資本経営" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E4%BA%BA%E7%9A%84%E8%B3%87%E6%9C%AC%E7%B5%8C%E5%96%B6&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"eラーニング" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=e%E3%83%A9%E3%83%BC%E3%83%8B%E3%83%B3%E3%82%B0&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"研修サービス" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E7%A0%94%E4%BF%AE%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"人事" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E4%BA%BA%E4%BA%8B&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"BDR" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=BDR&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"商談化率" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E5%95%86%E8%AB%87%E5%8C%96%E7%8E%87&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"LPO" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=LPO&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"LTV" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=LTV&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"Saas" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=Saas&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"CVR" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=CVR&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"インサイドセールス" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E3%82%A4%E3%83%B3%E3%82%B5%E3%82%A4%E3%83%89%E3%82%BB%E3%83%BC%E3%83%AB%E3%82%B9&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"BtoBマーケ" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=BtoB%E3%83%9E%E3%83%BC%E3%82%B1&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: おすすめ
+  url: https://note.com/recommend/rss
+  category_hint: null
+- name: '"リード獲得" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E3%83%AA%E3%83%BC%E3%83%89%E7%8D%B2%E5%BE%97&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"SEO" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=SEO&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"LLMO" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=LLMO&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"AIO" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=AIO&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"GEO" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=GEO&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"データ分析" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E3%83%87%E3%83%BC%E3%82%BF%E5%88%86%E6%9E%90&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"BtoB" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=BtoB&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: '"マーケティング" - Google ニュース'
+  url: https://news.google.com/news/rss/search?q=%E3%83%9E%E3%83%BC%E3%82%B1%E3%83%86%E3%82%A3%E3%83%B3%E3%82%B0&&hl=ja-JP&gl=JP&ceid=JP:ja
+  category_hint: null
+- name: チームを整えるあれこれ
+  url: https://sobarecord.substack.com/feed/
+  category_hint: null
+- name: MarkeZine:新着一覧
+  url: https://markezine.jp/rss/new/20/index.xml
+  category_hint: null
+- name: THE BRIDGE（ザ・ブリッジ）
+  url: https://feeds.feedburner.com/SdJapan
+  category_hint: null
+- name: SEOmoz Blog
+  url: https://feeds.feedburner.com/seomoz
+  category_hint: null
+- name: BUSINESS INSIDER JAPAN
+  url: https://www.businessinsider.jp/feed/index.xml
+  category_hint: null
+- name: 海外SEO情報ブログ - 海外のSEO対策で極めるアクセスアップ術
+  url: https://feeds.feedburner.com/kaigai-seo
+  category_hint: null
+- name: AMP[アンプ] – ビジネスインスピレーションメディア
+  url: https://amp.review/feed/
+  category_hint: null
+- name: ユーザ視点をもっと間近に – ポップインサイト公式ブログ
+  url: https://popinsight.jp/blog/?feed=rss2
+  category_hint: null
+- name: web > SEO
+  url: https://webweb.hatenablog.com/feed
+  category_hint: null
+- name: SEO Japan
+  url: https://www.seojapan.com/blog/feed
+  category_hint: null
+- name: ライフハッカー［日本版］
+  url: https://feeds.lifehacker.jp/rss/lifehacker/index.xml
+  category_hint: null
+- name: GIGAZINE
+  url: https://gigazine.net/news/rss_2.0/
+  category_hint: null
+- name: こが
+  url: https://note.com/kg_yt7/rss
+  category_hint: null
+- name: 前田ヒロ
+  url: https://hiromaeda.com/feed/
+  category_hint: null
+- name: 松本健太郎
+  url: https://note.com/jyaga0716/rss
+  category_hint: null
+- name: '高広伯彦のmediologic: note支店'
+  url: https://note.com/mediologic/rss
+  category_hint: null
+- name: 黒澤 友貴/ブランディングテクノロジー
+  url: https://note.com/tomokikurosawa/rss
+  category_hint: null
+- name: 岡本剛典
+  url: https://note.com/takaokamoto/rss
+  category_hint: null
+- name: 向井俊介@App Annie
+  url: https://note.com/shun0718/rss
+  category_hint: null
+- name: CNET Japan 最新情報　総合
+  url: http://feeds.japan.cnet.com/rss/cnet/all.rdf
+  category_hint: null
+- name: 導入事例活用ナビ
+  url: https://marketing.clabel.jp/feed
+  category_hint: null
+- name: 戸栗 頌平（Shohei Toguri）
+  url: https://note.com/shohei_toguri/rss
+  category_hint: null
+- name: Yuki Ishii(DJ141)/株式会社digsas CEO
+  url: https://note.com/dj141/rss
+  category_hint: null
+- name: Motoho Jitsukawa
+  url: https://note.com/motoho299/rss
+  category_hint: null
+- name: ツバサササキ
+  url: https://note.com/hofhof/rss
+  category_hint: null
