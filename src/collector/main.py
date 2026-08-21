@@ -75,6 +75,10 @@ def main() -> None:
     else:
         logger.info("ANTHROPIC_API_KEY not set; running without AI summarization/classification")
 
+    slack_webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+    if not args.dry_run and not slack_webhook_url:
+        parser.error("SLACK_WEBHOOK_URL is required unless --dry-run is used")
+
     config_paths = {
         "keywords": "config/keywords.yaml",
         "feeds": "config/feeds.yaml",
@@ -84,7 +88,7 @@ def main() -> None:
         "google_api_key": os.environ["GOOGLE_API_KEY"],
         "google_cse_id": os.environ["GOOGLE_CSE_ID"],
         "anthropic_client": anthropic_client,
-        "slack_webhook_url": os.environ["SLACK_WEBHOOK_URL"],
+        "slack_webhook_url": slack_webhook_url,
     }
     now_iso = datetime.now(timezone.utc).isoformat()
 
