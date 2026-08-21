@@ -10,6 +10,10 @@ _CATEGORY_LABELS = {
 _CATEGORY_ORDER = ("seo", "ai", "ads", "event", "other")
 
 
+def _escape_mrkdwn(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def build_slack_blocks(articles: list[Article], today: str) -> list[dict]:
     blocks: list[dict] = [
         {
@@ -20,7 +24,8 @@ def build_slack_blocks(articles: list[Article], today: str) -> list[dict]:
 
     by_category: dict[str, list[Article]] = {c: [] for c in _CATEGORY_ORDER}
     for article in articles:
-        by_category.setdefault(article.category or "other", []).append(article)
+        category = article.category if article.category in _CATEGORY_ORDER else "other"
+        by_category.setdefault(category, []).append(article)
 
     for category in _CATEGORY_ORDER:
         items = by_category.get(category, [])
@@ -32,12 +37,13 @@ def build_slack_blocks(articles: list[Article], today: str) -> list[dict]:
             "text": {"type": "mrkdwn", "text": f"*{_CATEGORY_LABELS[category]}*"},
         })
         for article in items:
-            summary = article.summary or "(要約なし)"
+            summary = _escape_mrkdwn(article.summary or "(要約なし)")
+            title = _escape_mrkdwn(article.title)
             blocks.append({
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"<{article.url}|{article.title}>\n{summary}",
+                    "text": f"<{article.url}|{title}>\n{summary}",
                 },
             })
 
