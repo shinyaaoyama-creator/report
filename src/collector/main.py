@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import socket
@@ -74,7 +75,9 @@ def main() -> None:
     }
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    run(config_paths, secrets, now_iso, dry_run=args.dry_run)
+    blocks = run(config_paths, secrets, now_iso, dry_run=args.dry_run)
+    if args.dry_run:
+        print(json.dumps(blocks, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

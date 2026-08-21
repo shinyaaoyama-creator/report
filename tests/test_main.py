@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from src.collector import main as main_module
 from src.collector.models import Article
 
@@ -139,3 +141,54 @@ def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
 
     state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
     assert "https://example.com/a" in state_after
+
+
+def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+    state_before = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")
+
+    monkeypatch.setattr(
+        main_module,
+        "collect_search_articles",
+        lambda keywords, api_key, cse_id: [
+            Article(title="A", url="https://example.com/a", source="search", source_name="s")
+        ],
+    )
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+    monkeypatch.setattr(
+        main_module,
+        "summarize_and_classify",
+        lambda articles, client: [
+            Article(
+                title=a.title,
+                url=a.url,
+                source=a.source,
+                source_name=a.source_name,
+                summary="要約",
+                category="seo",
+            )
+            for a in articles
+        ],
+    )
+
+    def _failing_post(blocks, url):
+        raise RuntimeError("HTTP 400")
+
+    monkeypatch.setattr(main_module, "post_to_slack", _failing_post)
+
+    with pytest.raises(RuntimeError):
+        main_module.run(
+            config_paths,
+            secrets={
+                "google_api_key": "k",
+                "google_cse_id": "c",
+                "anthropic_client": object(),
+                "slack_webhook_url": "https://hooks.slack.com/x",
+            },
+            now_iso="2026-08-20T00:00:00+00:00",
+            dry_run=False,
+        )
+
+    state_after_text = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")
+    assert state_after_text == state_before
+    assert json.loads(state_after_text) == {}
