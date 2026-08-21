@@ -21,7 +21,11 @@ def fetch_search_results(
         params={"key": api_key, "cx": cse_id, "q": keyword},
         timeout=10,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError:
+        logger.error("Google CSE error response body: %s", getattr(response, "text", "<no body>"))
+        raise
     payload = response.json()
 
     return [
