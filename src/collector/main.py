@@ -13,6 +13,8 @@ from .summarizer import summarize_and_classify
 
 logger = logging.getLogger(__name__)
 
+MAX_ARTICLES_PER_RUN = 40
+
 
 def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) -> list[dict]:
     keywords = load_keywords(config_paths["keywords"])
@@ -22,6 +24,11 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
     search_articles = collect_search_articles(keywords, secrets["google_api_key"], secrets["google_cse_id"])
     rss_articles = collect_rss_articles(feeds)
     articles = dedupe_articles(search_articles + rss_articles, state)
+    if len(articles) > MAX_ARTICLES_PER_RUN:
+        logger.warning(
+            "capping articles for this run: %d -> %d", len(articles), MAX_ARTICLES_PER_RUN
+        )
+        articles = articles[:MAX_ARTICLES_PER_RUN]
     articles = summarize_and_classify(articles, secrets["anthropic_client"])
 
     today = now_iso[:10]

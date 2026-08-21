@@ -53,6 +53,60 @@ def test_run_dry_run_does_not_post_or_save_state(tmp_path, monkeypatch):
     assert state_after == {}
 
 
+def test_run_caps_articles_per_run(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    many = [
+        Article(title=f"A{i}", url=f"https://example.com/{i}", source="search", source_name="s")
+        for i in range(60)
+    ]
+
+    monkeypatch.setattr(main_module, "collect_search_articles", lambda keywords, api_key, cse_id: many)
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+    monkeypatch.setattr(
+        main_module,
+        "summarize_and_classify",
+        lambda articles, client: [
+            Article(
+                title=a.title,
+                url=a.url,
+                source=a.source,
+                source_name=a.source_name,
+                summary="要約",
+                category="seo",
+            )
+            for a in articles
+        ],
+    )
+
+    captured = {}
+    monkeypatch.setattr(
+        main_module, "post_to_slack", lambda blocks, url: captured.update(blocks=blocks)
+    )
+
+    blocks = main_module.run(
+        config_paths,
+        secrets={
+            "google_api_key": "k",
+            "google_cse_id": "c",
+            "anthropic_client": object(),
+            "slack_webhook_url": "https://hooks.slack.com/x",
+        },
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=False,
+    )
+
+    article_sections = [
+        b for b in captured["blocks"]
+        if b["type"] == "section" and "https://example.com/" in b["text"]["text"]
+    ]
+    assert len(article_sections) == main_module.MAX_ARTICLES_PER_RUN == 40
+    assert blocks == captured["blocks"]
+
+    state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
+    assert len(state_after) == 40
+
+
 def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
 
