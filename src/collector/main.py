@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import socket
 
 from .config import load_feeds, load_keywords
 from .dedup import dedupe_articles
@@ -12,6 +13,10 @@ from .state_store import load_state, mark_seen, prune_old, save_state
 from .summarizer import summarize_and_classify
 
 logger = logging.getLogger(__name__)
+
+# feedparser.parse() has no timeout of its own; without this a dead feed host
+# can hang the whole job indefinitely.
+socket.setdefaulttimeout(15)
 
 MAX_ARTICLES_PER_RUN = 40
 
