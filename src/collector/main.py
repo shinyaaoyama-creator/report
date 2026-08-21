@@ -11,7 +11,7 @@ from .notifier import post_to_slack
 from .rss_collector import collect_rss_articles
 from .search_collector import collect_search_articles
 from .state_store import load_state, mark_seen, prune_old, save_state
-from .summarizer import summarize_and_classify
+from .summarizer import apply_category_hint_fallback, summarize_and_classify
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,12 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
             "capping articles for this run: %d -> %d", len(articles), MAX_ARTICLES_PER_RUN
         )
         articles = articles[:MAX_ARTICLES_PER_RUN]
-    articles = summarize_and_classify(articles, secrets["anthropic_client"])
+    anthropic_client = secrets.get("anthropic_client")
+    if anthropic_client is None:
+        logger.info("no anthropic_client provided; skipping AI summarization/classification")
+        articles = apply_category_hint_fallback(articles)
+    else:
+        articles = summarize_and_classify(articles, anthropic_client)
 
     today = now_iso[:10]
     blocks = build_slack_blocks(articles, today=today)
@@ -59,8 +64,16 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    import anthropic
     from datetime import datetime, timezone
+
+    anthropic_client = None
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_api_key:
+        import anthropic
+
+        anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
+    else:
+        logger.info("ANTHROPIC_API_KEY not set; running without AI summarization/classification")
 
     config_paths = {
         "keywords": "config/keywords.yaml",
@@ -70,7 +83,7 @@ def main() -> None:
     secrets = {
         "google_api_key": os.environ["GOOGLE_API_KEY"],
         "google_cse_id": os.environ["GOOGLE_CSE_ID"],
-        "anthropic_client": anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]),
+        "anthropic_client": anthropic_client,
         "slack_webhook_url": os.environ["SLACK_WEBHOOK_URL"],
     }
     now_iso = datetime.now(timezone.utc).isoformat()

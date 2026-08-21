@@ -42,18 +42,23 @@ def _call_with_retries(client, prompt: str, max_retries: int) -> str | None:
     return None
 
 
-def summarize_and_classify(
-    articles: list[Article],
-    client,
-    batch_size: int = 10,
-    max_retries: int = 3,
-) -> list[Article]:
+def apply_category_hint_fallback(articles: list[Article]) -> list[Article]:
     for article in articles:
         if article.category is None:
             if article.category_hint in CATEGORIES:
                 article.category = article.category_hint
             else:
                 article.category = "other"
+    return articles
+
+
+def summarize_and_classify(
+    articles: list[Article],
+    client,
+    batch_size: int = 10,
+    max_retries: int = 3,
+) -> list[Article]:
+    apply_category_hint_fallback(articles)
 
     for i in range(0, len(articles), batch_size):
         batch = articles[i:i + batch_size]

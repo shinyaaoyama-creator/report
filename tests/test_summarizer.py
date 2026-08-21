@@ -1,7 +1,7 @@
 import json
 
 from src.collector.models import Article
-from src.collector.summarizer import summarize_and_classify
+from src.collector.summarizer import apply_category_hint_fallback, summarize_and_classify
 
 
 class _FakeBlock:
@@ -100,6 +100,35 @@ def test_summarize_and_classify_handles_malformed_json():
 
     assert result[0].summary is None
     assert result[0].category == "other"
+
+
+def test_apply_category_hint_fallback_uses_valid_hint():
+    article = _article()
+    article.category_hint = "ai"
+
+    result = apply_category_hint_fallback([article])
+
+    assert result[0].summary is None
+    assert result[0].category == "ai"
+
+
+def test_apply_category_hint_fallback_defaults_to_other_without_hint():
+    article = _article()
+
+    result = apply_category_hint_fallback([article])
+
+    assert result[0].summary is None
+    assert result[0].category == "other"
+
+
+def test_apply_category_hint_fallback_does_not_overwrite_existing_category():
+    article = _article()
+    article.category = "event"
+    article.category_hint = "seo"
+
+    result = apply_category_hint_fallback([article])
+
+    assert result[0].category == "event"
 
 
 def test_summarize_and_classify_handles_partial_batch_response():

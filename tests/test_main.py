@@ -143,6 +143,48 @@ def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
     assert "https://example.com/a" in state_after
 
 
+def test_run_skips_summarizer_when_anthropic_client_is_none(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    monkeypatch.setattr(
+        main_module,
+        "collect_search_articles",
+        lambda keywords, api_key, cse_id: [
+            Article(
+                title="A",
+                url="https://example.com/a",
+                source="search",
+                source_name="s",
+                category_hint="seo",
+            )
+        ],
+    )
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+
+    def _fail_if_called(articles, client):
+        raise AssertionError("summarize_and_classify must not be called when anthropic_client is None")
+
+    monkeypatch.setattr(main_module, "summarize_and_classify", _fail_if_called)
+
+    blocks = main_module.run(
+        config_paths,
+        secrets={
+            "google_api_key": "k",
+            "google_cse_id": "c",
+            "anthropic_client": None,
+            "slack_webhook_url": "https://hooks.slack.com/x",
+        },
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=True,
+    )
+
+    section_texts = "\n".join(
+        b["text"]["text"] for b in blocks if b["type"] == "section"
+    )
+    assert "https://example.com/a" in section_texts
+    assert "(要約なし)" in section_texts
+
+
 def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
     state_before = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")
