@@ -31,7 +31,7 @@ def _call_with_retries(client, prompt: str, max_retries: int) -> str | None:
         try:
             response = client.messages.create(
                 model=MODEL,
-                max_tokens=2000,
+                max_tokens=8000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return response.content[0].text
@@ -49,7 +49,11 @@ def summarize_and_classify(
     max_retries: int = 3,
 ) -> list[Article]:
     for article in articles:
-        article.category = article.category or "other"
+        if article.category is None:
+            if article.category_hint in CATEGORIES:
+                article.category = article.category_hint
+            else:
+                article.category = "other"
 
     for i in range(0, len(articles), batch_size):
         batch = articles[i:i + batch_size]

@@ -72,6 +72,27 @@ def test_summarize_and_classify_falls_back_after_exhausting_retries():
     assert result[0].category == "other"
 
 
+def test_summarize_and_classify_uses_valid_category_hint_as_fallback():
+    client = _FakeClient([ConnectionError("boom"), ConnectionError("boom"), ConnectionError("boom")])
+    article = _article()
+    article.category_hint = "seo"
+
+    result = summarize_and_classify([article], client, batch_size=10, max_retries=3)
+
+    assert result[0].summary is None
+    assert result[0].category == "seo"
+
+
+def test_summarize_and_classify_ignores_invalid_category_hint():
+    client = _FakeClient([ConnectionError("boom"), ConnectionError("boom"), ConnectionError("boom")])
+    article = _article()
+    article.category_hint = "not_a_real_category"
+
+    result = summarize_and_classify([article], client, batch_size=10, max_retries=3)
+
+    assert result[0].category == "other"
+
+
 def test_summarize_and_classify_handles_malformed_json():
     client = _FakeClient([_FakeResponse("not json")])
 
