@@ -8,6 +8,7 @@ from .config import load_feeds, load_keywords
 from .dedup import dedupe_articles
 from .formatter import build_slack_blocks
 from .notifier import post_to_slack
+from .relevance_filter import filter_by_source_keyword
 from .rss_collector import collect_rss_articles
 from .search_collector import collect_search_articles
 from .state_store import load_state, mark_seen, prune_old, save_state
@@ -29,7 +30,8 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
 
     search_articles = collect_search_articles(keywords, secrets["google_api_key"], secrets["google_cse_id"])
     rss_articles = collect_rss_articles(feeds)
-    articles = dedupe_articles(search_articles + rss_articles, state)
+    combined_articles = filter_by_source_keyword(search_articles + rss_articles)
+    articles = dedupe_articles(combined_articles, state)
     if len(articles) > MAX_ARTICLES_PER_RUN:
         logger.warning(
             "capping articles for this run: %d -> %d", len(articles), MAX_ARTICLES_PER_RUN

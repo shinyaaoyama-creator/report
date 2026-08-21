@@ -185,6 +185,50 @@ def test_run_skips_summarizer_when_anthropic_client_is_none(tmp_path, monkeypatc
     assert "(要約なし)" in section_texts
 
 
+def test_run_filters_out_articles_not_matching_their_feed_keyword(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    monkeypatch.setattr(
+        main_module,
+        "collect_search_articles",
+        lambda keywords, api_key, cse_id: [],
+    )
+    monkeypatch.setattr(
+        main_module,
+        "collect_rss_articles",
+        lambda feeds: [
+            Article(
+                title="人事評価制度の話題",
+                url="https://example.com/a",
+                source="rss",
+                source_name='"人事" - Google ニュース',
+            ),
+            Article(
+                title="全く関係のない話題",
+                url="https://example.com/b",
+                source="rss",
+                source_name='"人事" - Google ニュース',
+            ),
+        ],
+    )
+
+    blocks = main_module.run(
+        config_paths,
+        secrets={
+            "google_api_key": "k",
+            "google_cse_id": "c",
+            "anthropic_client": None,
+            "slack_webhook_url": "https://hooks.slack.com/x",
+        },
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=True,
+    )
+
+    section_texts = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
+    assert "https://example.com/a" in section_texts
+    assert "https://example.com/b" not in section_texts
+
+
 def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
     state_before = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")
