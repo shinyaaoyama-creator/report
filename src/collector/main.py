@@ -78,6 +78,12 @@ def main() -> None:
 
     from datetime import datetime, timezone
 
+    # google-genai reads the GOOGLE_API_KEY env var itself and prefers it over
+    # an explicitly passed api_key, so it must be removed before constructing
+    # the Gemini client or Gemini calls silently use the Custom Search key.
+    google_api_key = os.environ.pop("GOOGLE_API_KEY")
+    google_cse_id = os.environ["GOOGLE_CSE_ID"]
+
     anthropic_client = None
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
     if anthropic_api_key:
@@ -106,8 +112,8 @@ def main() -> None:
         "state": "state/seen_articles.json",
     }
     secrets = {
-        "google_api_key": os.environ["GOOGLE_API_KEY"],
-        "google_cse_id": os.environ["GOOGLE_CSE_ID"],
+        "google_api_key": google_api_key,
+        "google_cse_id": google_cse_id,
         "anthropic_client": anthropic_client,
         "gemini_client": gemini_client,
         "slack_webhook_url": slack_webhook_url,
