@@ -243,7 +243,7 @@ def test_run_uses_gemini_for_relevance_filter_and_summarization_when_provided(tm
 
     relevance_calls = {"called": False}
 
-    def _fake_filter_by_relevance(articles, client):
+    def _fake_filter_by_relevance(articles, client, **kwargs):
         relevance_calls["called"] = True
         return articles
 
@@ -254,7 +254,7 @@ def test_run_uses_gemini_for_relevance_filter_and_summarization_when_provided(tm
 
     monkeypatch.setattr(main_module, "summarize_and_classify", _fail_if_claude_called)
 
-    def _fake_gemini_summarize(articles, client):
+    def _fake_gemini_summarize(articles, client, **kwargs):
         for article in articles:
             article.summary = "Gemini要約"
             article.category = "seo"
@@ -292,12 +292,12 @@ def test_run_applies_relevance_filter_before_capping(tmp_path, monkeypatch):
 
     received_counts = {}
 
-    def _fake_filter_by_relevance(articles, client):
+    def _fake_filter_by_relevance(articles, client, **kwargs):
         received_counts["count"] = len(articles)
         return articles
 
     monkeypatch.setattr(main_module, "filter_by_relevance", _fake_filter_by_relevance)
-    monkeypatch.setattr(main_module, "gemini_summarize_and_classify", lambda articles, client: articles)
+    monkeypatch.setattr(main_module, "gemini_summarize_and_classify", lambda articles, client, **kwargs: articles)
 
     main_module.run(
         config_paths,

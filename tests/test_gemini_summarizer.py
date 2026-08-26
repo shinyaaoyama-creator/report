@@ -102,3 +102,19 @@ def test_summarize_and_classify_handles_partial_batch_response():
     assert result[0].category == "seo"
     assert result[1].summary is None
     assert result[1].category == "other"
+
+
+def test_summarize_and_classify_sleeps_between_batches(monkeypatch):
+    payload_a = json.dumps([{"url": "https://example.com/a", "summary": "要約A", "category": "seo"}])
+    payload_b = json.dumps([{"url": "https://example.com/b", "summary": "要約B", "category": "ai"}])
+    client = _FakeClient([_FakeResponse(payload_a), _FakeResponse(payload_b)])
+
+    article_a = _article(title="A", url="https://example.com/a")
+    article_b = _article(title="B", url="https://example.com/b")
+
+    sleeps = []
+    monkeypatch.setattr("src.collector.gemini_summarizer.time.sleep", lambda s: sleeps.append(s))
+
+    summarize_and_classify([article_a, article_b], client, batch_size=1, request_interval_seconds=4.5)
+
+    assert sleeps == [4.5]

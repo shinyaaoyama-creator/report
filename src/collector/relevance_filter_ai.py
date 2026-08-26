@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 from .gemini_utils import MODEL, call_with_retries
 from .models import Article, CATEGORIES
@@ -30,10 +31,13 @@ def filter_by_relevance(
     client,
     batch_size: int = 50,
     max_retries: int = 3,
+    request_interval_seconds: float = 0,
 ) -> list[Article]:
     kept: list[Article] = []
 
     for i in range(0, len(articles), batch_size):
+        if i > 0 and request_interval_seconds:
+            time.sleep(request_interval_seconds)
         batch = articles[i:i + batch_size]
         raw = call_with_retries(client, MODEL, _build_prompt(batch), max_retries)
         if raw is None:

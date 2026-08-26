@@ -37,7 +37,9 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
 
     gemini_client = secrets.get("gemini_client")
     if gemini_client is not None:
-        articles = filter_by_relevance(articles, gemini_client)
+        # Free-tier Gemini rate limits are per-minute; pace batches so we
+        # don't burst past them and fall back to fail-open unfiltered results.
+        articles = filter_by_relevance(articles, gemini_client, request_interval_seconds=4.5)
 
     if len(articles) > MAX_ARTICLES_PER_RUN:
         logger.warning(
@@ -47,7 +49,7 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
 
     anthropic_client = secrets.get("anthropic_client")
     if gemini_client is not None:
-        articles = gemini_summarize_and_classify(articles, gemini_client)
+        articles = gemini_summarize_and_classify(articles, gemini_client, request_interval_seconds=4.5)
     elif anthropic_client is not None:
         articles = summarize_and_classify(articles, anthropic_client)
     else:

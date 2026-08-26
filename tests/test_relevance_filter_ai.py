@@ -97,3 +97,30 @@ def test_filter_by_relevance_batches_large_lists():
 
     assert len(result) == 5
     assert client.calls == 2
+
+
+def test_filter_by_relevance_sleeps_between_batches(monkeypatch):
+    payload_batch1 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3)])
+    payload_batch2 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3, 5)])
+    client = _FakeClient([_FakeResponse(payload_batch1), _FakeResponse(payload_batch2)])
+    articles = [_article(title=f"T{i}", url=f"https://example.com/{i}") for i in range(5)]
+
+    sleeps = []
+    monkeypatch.setattr("src.collector.relevance_filter_ai.time.sleep", lambda s: sleeps.append(s))
+
+    filter_by_relevance(articles, client, batch_size=3, request_interval_seconds=4.5)
+
+    assert sleeps == [4.5]
+
+
+def test_filter_by_relevance_does_not_sleep_after_last_batch(monkeypatch):
+    payload = json.dumps([{"url": "https://example.com/a", "relevant": True}])
+    client = _FakeClient([_FakeResponse(payload)])
+    article = _article()
+
+    sleeps = []
+    monkeypatch.setattr("src.collector.relevance_filter_ai.time.sleep", lambda s: sleeps.append(s))
+
+    filter_by_relevance([article], client, batch_size=10, request_interval_seconds=4.5)
+
+    assert sleeps == []
