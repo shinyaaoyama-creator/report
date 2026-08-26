@@ -7,8 +7,10 @@ import socket
 from .config import load_feeds, load_keywords
 from .dedup import dedupe_articles
 from .formatter import build_slack_blocks
+from .gemini_summarizer import summarize_and_classify as gemini_summarize_and_classify
 from .notifier import post_to_slack
 from .relevance_filter import filter_by_source_keyword
+from .relevance_filter_ai import filter_by_relevance
 from .rss_collector import collect_rss_articles
 from .search_collector import collect_search_articles
 from .state_store import load_state, mark_seen, prune_old, save_state
@@ -32,17 +34,25 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
     rss_articles = collect_rss_articles(feeds)
     combined_articles = filter_by_source_keyword(search_articles + rss_articles)
     articles = dedupe_articles(combined_articles, state)
+
+    gemini_client = secrets.get("gemini_client")
+    if gemini_client is not None:
+        articles = filter_by_relevance(articles, gemini_client)
+
     if len(articles) > MAX_ARTICLES_PER_RUN:
         logger.warning(
             "capping articles for this run: %d -> %d", len(articles), MAX_ARTICLES_PER_RUN
         )
         articles = articles[:MAX_ARTICLES_PER_RUN]
+
     anthropic_client = secrets.get("anthropic_client")
-    if anthropic_client is None:
-        logger.info("no anthropic_client provided; skipping AI summarization/classification")
-        articles = apply_category_hint_fallback(articles)
-    else:
+    if gemini_client is not None:
+        articles = gemini_summarize_and_classify(articles, gemini_client)
+    elif anthropic_client is not None:
         articles = summarize_and_classify(articles, anthropic_client)
+    else:
+        logger.info("no AI client provided; skipping AI summarization/classification")
+        articles = apply_category_hint_fallback(articles)
 
     today = now_iso[:10]
     blocks = build_slack_blocks(articles, today=today)
@@ -75,7 +85,16 @@ def main() -> None:
 
         anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
     else:
-        logger.info("ANTHROPIC_API_KEY not set; running without AI summarization/classification")
+        logger.info("ANTHROPIC_API_KEY not set; running without Claude-based summarization/classification")
+
+    gemini_client = None
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    if gemini_api_key:
+        from google import genai
+
+        gemini_client = genai.Client(api_key=gemini_api_key)
+    else:
+        logger.info("GEMINI_API_KEY not set; running without Gemini-based relevance filtering/summarization")
 
     slack_webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
     if not args.dry_run and not slack_webhook_url:
@@ -90,6 +109,7 @@ def main() -> None:
         "google_api_key": os.environ["GOOGLE_API_KEY"],
         "google_cse_id": os.environ["GOOGLE_CSE_ID"],
         "anthropic_client": anthropic_client,
+        "gemini_client": gemini_client,
         "slack_webhook_url": slack_webhook_url,
     }
     now_iso = datetime.now(timezone.utc).isoformat()
