@@ -46,9 +46,6 @@
 - name: '"BtoBマーケ" - Google ニュース'
   url: https://news.google.com/news/rss/search?q=BtoB%E3%83%9E%E3%83%BC%E3%82%B1&&hl=ja-JP&gl=JP&ceid=JP:ja
   category_hint: null
-- name: おすすめ
-  url: https://note.com/recommend/rss
-  category_hint: null
 - name: '"リード獲得" - Google ニュース'
   url: https://news.google.com/news/rss/search?q=%E3%83%AA%E3%83%BC%E3%83%89%E7%8D%B2%E5%BE%97&&hl=ja-JP&gl=JP&ceid=JP:ja
   category_hint: null
@@ -73,9 +70,6 @@
 - name: '"マーケティング" - Google ニュース'
   url: https://news.google.com/news/rss/search?q=%E3%83%9E%E3%83%BC%E3%82%B1%E3%83%86%E3%82%A3%E3%83%B3%E3%82%B0&&hl=ja-JP&gl=JP&ceid=JP:ja
   category_hint: null
-- name: チームを整えるあれこれ
-  url: https://sobarecord.substack.com/feed/
-  category_hint: null
 - name: MarkeZine:新着一覧
   url: https://markezine.jp/rss/new/20/index.xml
   category_hint: null
@@ -85,14 +79,8 @@
 - name: SEOmoz Blog
   url: https://feeds.feedburner.com/seomoz
   category_hint: null
-- name: BUSINESS INSIDER JAPAN
-  url: https://www.businessinsider.jp/feed/index.xml
-  category_hint: null
 - name: 海外SEO情報ブログ - 海外のSEO対策で極めるアクセスアップ術
   url: https://feeds.feedburner.com/kaigai-seo
-  category_hint: null
-- name: AMP[アンプ] – ビジネスインスピレーションメディア
-  url: https://amp.review/feed/
   category_hint: null
 - name: ユーザ視点をもっと間近に – ポップインサイト公式ブログ
   url: https://popinsight.jp/blog/?feed=rss2
@@ -102,15 +90,6 @@
   category_hint: null
 - name: SEO Japan
   url: https://www.seojapan.com/blog/feed
-  category_hint: null
-- name: ライフハッカー［日本版］
-  url: https://feeds.lifehacker.jp/rss/lifehacker/index.xml
-  category_hint: null
-- name: GIGAZINE
-  url: https://gigazine.net/news/rss_2.0/
-  category_hint: null
-- name: こが
-  url: https://note.com/kg_yt7/rss
   category_hint: null
 - name: 前田ヒロ
   url: https://hiromaeda.com/feed/
@@ -129,12 +108,6 @@
   category_hint: null
 - name: 向井俊介@App Annie
   url: https://note.com/shun0718/rss
-  category_hint: null
-- name: CNET Japan 最新情報　総合
-  url: http://feeds.japan.cnet.com/rss/cnet/all.rdf
-  category_hint: null
-- name: 導入事例活用ナビ
-  url: https://marketing.clabel.jp/feed
   category_hint: null
 - name: 戸栗 頌平（Shohei Toguri）
   url: https://note.com/shohei_toguri/rss
