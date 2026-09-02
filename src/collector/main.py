@@ -40,6 +40,7 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
         # Free-tier Gemini rate limits are per-minute; pace batches so we
         # don't burst past them and fall back to fail-open unfiltered results.
         articles = filter_by_relevance(articles, gemini_client, request_interval_seconds=4.5)
+        articles.sort(key=lambda a: a.relevance_score if a.relevance_score is not None else 0, reverse=True)
 
     if len(articles) > MAX_ARTICLES_PER_RUN:
         logger.warning(

@@ -35,10 +35,10 @@ def _article(title="A", url="https://example.com/a"):
     return Article(title=title, url=url, source="rss", source_name="test")
 
 
-def test_filter_by_relevance_keeps_relevant_and_drops_irrelevant():
+def test_filter_by_relevance_keeps_high_score_and_drops_low_score():
     payload = json.dumps([
-        {"url": "https://example.com/a", "relevant": True},
-        {"url": "https://example.com/b", "relevant": False},
+        {"url": "https://example.com/a", "score": 5},
+        {"url": "https://example.com/b", "score": 1},
     ])
     client = _FakeClient([_FakeResponse(payload)])
     article_a = _article(title="A", url="https://example.com/a")
@@ -47,16 +47,18 @@ def test_filter_by_relevance_keeps_relevant_and_drops_irrelevant():
     result = filter_by_relevance([article_a, article_b], client, batch_size=10)
 
     assert result == [article_a]
+    assert article_a.relevance_score == 5
 
 
 def test_filter_by_relevance_retries_then_succeeds():
-    payload = json.dumps([{"url": "https://example.com/a", "relevant": True}])
+    payload = json.dumps([{"url": "https://example.com/a", "score": 4}])
     client = _FakeClient([ConnectionError("boom"), _FakeResponse(payload)])
     article = _article()
 
     result = filter_by_relevance([article], client, batch_size=10, max_retries=3)
 
     assert result == [article]
+    assert article.relevance_score == 4
 
 
 def test_filter_by_relevance_keeps_batch_unfiltered_after_exhausting_retries():
@@ -66,6 +68,7 @@ def test_filter_by_relevance_keeps_batch_unfiltered_after_exhausting_retries():
     result = filter_by_relevance([article], client, batch_size=10, max_retries=3)
 
     assert result == [article]
+    assert article.relevance_score == 3
 
 
 def test_filter_by_relevance_keeps_batch_unfiltered_on_malformed_json():
@@ -75,21 +78,23 @@ def test_filter_by_relevance_keeps_batch_unfiltered_on_malformed_json():
     result = filter_by_relevance([article], client, batch_size=10)
 
     assert result == [article]
+    assert article.relevance_score == 3
 
 
 def test_filter_by_relevance_keeps_article_missing_from_response():
-    payload = json.dumps([{"url": "https://example.com/other", "relevant": False}])
+    payload = json.dumps([{"url": "https://example.com/other", "score": 1}])
     client = _FakeClient([_FakeResponse(payload)])
     article = _article(url="https://example.com/a")
 
     result = filter_by_relevance([article], client, batch_size=10)
 
     assert result == [article]
+    assert article.relevance_score == 3
 
 
 def test_filter_by_relevance_batches_large_lists():
-    payload_batch1 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3)])
-    payload_batch2 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3, 5)])
+    payload_batch1 = json.dumps([{"url": f"https://example.com/{i}", "score": 5} for i in range(3)])
+    payload_batch2 = json.dumps([{"url": f"https://example.com/{i}", "score": 5} for i in range(3, 5)])
     client = _FakeClient([_FakeResponse(payload_batch1), _FakeResponse(payload_batch2)])
     articles = [_article(title=f"T{i}", url=f"https://example.com/{i}") for i in range(5)]
 
@@ -100,8 +105,8 @@ def test_filter_by_relevance_batches_large_lists():
 
 
 def test_filter_by_relevance_sleeps_between_batches(monkeypatch):
-    payload_batch1 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3)])
-    payload_batch2 = json.dumps([{"url": f"https://example.com/{i}", "relevant": True} for i in range(3, 5)])
+    payload_batch1 = json.dumps([{"url": f"https://example.com/{i}", "score": 5} for i in range(3)])
+    payload_batch2 = json.dumps([{"url": f"https://example.com/{i}", "score": 5} for i in range(3, 5)])
     client = _FakeClient([_FakeResponse(payload_batch1), _FakeResponse(payload_batch2)])
     articles = [_article(title=f"T{i}", url=f"https://example.com/{i}") for i in range(5)]
 
@@ -114,7 +119,7 @@ def test_filter_by_relevance_sleeps_between_batches(monkeypatch):
 
 
 def test_filter_by_relevance_does_not_sleep_after_last_batch(monkeypatch):
-    payload = json.dumps([{"url": "https://example.com/a", "relevant": True}])
+    payload = json.dumps([{"url": "https://example.com/a", "score": 5}])
     client = _FakeClient([_FakeResponse(payload)])
     article = _article()
 

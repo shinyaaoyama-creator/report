@@ -315,6 +315,53 @@ def test_run_applies_relevance_filter_before_capping(tmp_path, monkeypatch):
     assert received_counts["count"] == 60
 
 
+def test_run_keeps_highest_relevance_score_articles_when_capping(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    many = [
+        Article(title=f"A{i}", url=f"https://example.com/{i}", source="search", source_name="s")
+        for i in range(60)
+    ]
+    monkeypatch.setattr(main_module, "collect_search_articles", lambda keywords, api_key, cse_id: many)
+    monkeypatch.setattr(main_module, "collect_rss_articles", lambda feeds: [])
+
+    def _fake_filter_by_relevance(articles, client, **kwargs):
+        # Collection order is the reverse of relevance: the last article
+        # collected is the most relevant one.
+        for idx, article in enumerate(articles):
+            article.relevance_score = idx
+        return articles
+
+    monkeypatch.setattr(main_module, "filter_by_relevance", _fake_filter_by_relevance)
+
+    captured = {}
+
+    def _fake_gemini_summarize(articles, client, **kwargs):
+        captured["urls"] = [a.url for a in articles]
+        for article in articles:
+            article.summary = "要約"
+            article.category = "seo"
+        return articles
+
+    monkeypatch.setattr(main_module, "gemini_summarize_and_classify", _fake_gemini_summarize)
+
+    main_module.run(
+        config_paths,
+        secrets={
+            "google_api_key": "k",
+            "google_cse_id": "c",
+            "anthropic_client": None,
+            "gemini_client": object(),
+            "slack_webhook_url": "https://hooks.slack.com/x",
+        },
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=True,
+    )
+
+    kept_indices = {int(url.rsplit("/", 1)[-1]) for url in captured["urls"]}
+    assert kept_indices == set(range(20, 60))
+
+
 def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
     state_before = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")

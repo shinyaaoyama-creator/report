@@ -13,3 +13,4 @@ class Article:
     published_at: str | None = None
     summary: str | None = None
     category: str | None = None
+    relevance_score: int | None = None
