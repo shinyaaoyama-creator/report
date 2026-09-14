@@ -229,6 +229,48 @@ def test_run_filters_out_articles_not_matching_their_feed_keyword(tmp_path, monk
     assert "https://example.com/b" not in section_texts
 
 
+def test_run_drops_stale_rss_articles(tmp_path, monkeypatch):
+    config_paths = _setup_configs(tmp_path)
+
+    monkeypatch.setattr(main_module, "collect_search_articles", lambda keywords, api_key, cse_id: [])
+    monkeypatch.setattr(
+        main_module,
+        "collect_rss_articles",
+        lambda feeds: [
+            Article(
+                title="新しい記事",
+                url="https://example.com/fresh",
+                source="rss",
+                source_name="s",
+                published_at="Thu, 20 Aug 2026 00:00:00 +0000",
+            ),
+            Article(
+                title="古い記事",
+                url="https://example.com/stale",
+                source="rss",
+                source_name="s",
+                published_at="Mon, 01 Jun 2026 00:00:00 +0000",
+            ),
+        ],
+    )
+
+    blocks = main_module.run(
+        config_paths,
+        secrets={
+            "google_api_key": "k",
+            "google_cse_id": "c",
+            "anthropic_client": None,
+            "slack_webhook_url": "https://hooks.slack.com/x",
+        },
+        now_iso="2026-08-20T00:00:00+00:00",
+        dry_run=True,
+    )
+
+    section_texts = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
+    assert "https://example.com/fresh" in section_texts
+    assert "https://example.com/stale" not in section_texts
+
+
 def test_run_uses_gemini_for_relevance_filter_and_summarization_when_provided(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
 

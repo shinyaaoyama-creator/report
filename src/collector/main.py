@@ -9,6 +9,7 @@ from .dedup import dedupe_articles
 from .formatter import build_slack_blocks
 from .gemini_summarizer import summarize_and_classify as gemini_summarize_and_classify
 from .notifier import post_to_slack
+from .recency_filter import filter_by_recency
 from .relevance_filter import filter_by_source_keyword
 from .relevance_filter_ai import filter_by_relevance
 from .rss_collector import collect_rss_articles
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 socket.setdefaulttimeout(15)
 
 MAX_ARTICLES_PER_RUN = 40
+MAX_ARTICLE_AGE_DAYS = 3
 
 
 def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) -> list[dict]:
@@ -33,6 +35,7 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
     search_articles = collect_search_articles(keywords, secrets["google_api_key"], secrets["google_cse_id"])
     rss_articles = collect_rss_articles(feeds)
     combined_articles = filter_by_source_keyword(search_articles + rss_articles)
+    combined_articles = filter_by_recency(combined_articles, now_iso, max_age_days=MAX_ARTICLE_AGE_DAYS)
     articles = dedupe_articles(combined_articles, state)
 
     gemini_client = secrets.get("gemini_client")
