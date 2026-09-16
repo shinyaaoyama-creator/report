@@ -66,3 +66,47 @@ def test_filter_by_source_keyword_handles_mixed_batch():
     result = filter_by_source_keyword([matching, non_matching, other_source])
 
     assert result == [matching, other_source]
+
+
+def test_filter_by_source_keyword_drops_personnel_announcement_from_jinji_keyword():
+    article = _article(
+        title="株式会社サンプル 人事異動のお知らせ",
+        source_name='"人事" - Google ニュース',
+    )
+
+    result = filter_by_source_keyword([article])
+
+    assert result == []
+
+
+def test_filter_by_source_keyword_drops_executive_appointment_from_jinji_keyword():
+    article = _article(
+        title="〇〇氏が代表取締役社長に就任",
+        source_name='"人事" - Google ニュース',
+    )
+
+    result = filter_by_source_keyword([article])
+
+    assert result == []
+
+
+def test_filter_by_source_keyword_keeps_hr_topic_article_from_jinji_keyword():
+    article = _article(
+        title="人事評価制度を刷新した企業の事例",
+        source_name='"人事" - Google ニュース',
+    )
+
+    result = filter_by_source_keyword([article])
+
+    assert result == [article]
+
+
+def test_filter_by_source_keyword_only_excludes_personnel_terms_for_jinji_keyword():
+    article = _article(
+        title="人事異動に強いSaaSの活用事例",
+        source_name='"Saas" - Google ニュース',
+    )
+
+    result = filter_by_source_keyword([article])
+
+    assert result == [article]
