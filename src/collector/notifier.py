@@ -1,14 +1,26 @@
-import requests
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-MAX_BLOCKS_PER_MESSAGE = 45
 
+def send_email(
+    subject: str,
+    html_body: str,
+    from_addr: str,
+    to_addr: str,
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str,
+    smtp_password: str,
+    smtp_client_factory=smtplib.SMTP,
+) -> None:
+    message = MIMEMultipart("alternative")
+    message["Subject"] = subject
+    message["From"] = from_addr
+    message["To"] = to_addr
+    message.attach(MIMEText(html_body, "html", "utf-8"))
 
-def post_to_slack(blocks: list[dict], webhook_url: str, http_post=requests.post) -> None:
-    chunks = [
-        blocks[i:i + MAX_BLOCKS_PER_MESSAGE]
-        for i in range(0, len(blocks), MAX_BLOCKS_PER_MESSAGE)
-    ] or [blocks]
-
-    for chunk in chunks:
-        response = http_post(webhook_url, json={"blocks": chunk}, timeout=10)
-        response.raise_for_status()
+    with smtp_client_factory(smtp_host, smtp_port, timeout=10) as smtp:
+        smtp.starttls()
+        smtp.login(smtp_username, smtp_password)
+        smtp.sendmail(from_addr, [to_addr], message.as_string())

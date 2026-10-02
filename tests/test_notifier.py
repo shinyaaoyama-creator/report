@@ -1,78 +1,88 @@
-import pytest
+import email
+from email.header import decode_header
 
-from src.collector.notifier import post_to_slack
-
-
-class _FakeResponse:
-    def __init__(self, status_code):
-        self.status_code = status_code
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise RuntimeError(f"HTTP {self.status_code}")
+from src.collector.notifier import send_email
 
 
-def test_post_to_slack_sends_blocks_payload():
-    captured = {}
+class _FakeSMTP:
+    instances = []
 
-    def _post(url, json, timeout=10):
-        captured["url"] = url
-        captured["json"] = json
-        return _FakeResponse(200)
+    def __init__(self, host, port, timeout=10):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.started_tls = False
+        self.login_args = None
+        self.sent = None
+        _FakeSMTP.instances.append(self)
 
-    post_to_slack([{"type": "header"}], "https://hooks.slack.com/services/x", http_post=_post)
+    def __enter__(self):
+        return self
 
-    assert captured["url"] == "https://hooks.slack.com/services/x"
-    assert captured["json"] == {"blocks": [{"type": "header"}]}
+    def __exit__(self, exc_type, exc, tb):
+        return False
 
+    def starttls(self):
+        self.started_tls = True
 
-def test_post_to_slack_raises_on_failure():
-    def _post(url, json, timeout=10):
-        return _FakeResponse(500)
+    def login(self, username, password):
+        self.login_args = (username, password)
 
-    with pytest.raises(RuntimeError):
-        post_to_slack([{"type": "header"}], "https://hooks.slack.com/services/x", http_post=_post)
-
-
-def test_post_to_slack_chunks_blocks_over_limit():
-    blocks = [{"type": "section", "id": i} for i in range(60)]
-    calls = []
-
-    def _post(url, json, timeout=10):
-        calls.append(json["blocks"])
-        return _FakeResponse(200)
-
-    post_to_slack(blocks, "https://hooks.slack.com/services/x", http_post=_post)
-
-    assert len(calls) > 1
-    assert all(len(chunk) <= 45 for chunk in calls)
-    flattened = [block for chunk in calls for block in chunk]
-    assert flattened == blocks
+    def sendmail(self, from_addr, to_addrs, message):
+        self.sent = (from_addr, to_addrs, message)
 
 
-def test_post_to_slack_sends_single_post_under_limit():
-    blocks = [{"type": "section", "id": i} for i in range(10)]
-    calls = []
+def _send(**overrides):
+    _FakeSMTP.instances = []
+    kwargs = {
+        "subject": "件名",
+        "html_body": "<p>本文</p>",
+        "from_addr": "from@example.com",
+        "to_addr": "to@example.com",
+        "smtp_host": "smtp.gmail.com",
+        "smtp_port": 587,
+        "smtp_username": "user",
+        "smtp_password": "pass",
+        "smtp_client_factory": _FakeSMTP,
+    }
+    kwargs.update(overrides)
+    send_email(**kwargs)
+    return _FakeSMTP.instances[0]
 
-    def _post(url, json, timeout=10):
-        calls.append(json["blocks"])
-        return _FakeResponse(200)
 
-    post_to_slack(blocks, "https://hooks.slack.com/services/x", http_post=_post)
+def test_send_email_connects_to_configured_host_and_port():
+    smtp = _send(smtp_host="smtp.gmail.com", smtp_port=587)
 
-    assert len(calls) == 1
-    assert calls[0] == blocks
+    assert smtp.host == "smtp.gmail.com"
+    assert smtp.port == 587
 
 
-def test_post_to_slack_propagates_failure_on_later_chunk():
-    blocks = [{"type": "section", "id": i} for i in range(60)]
-    calls = []
+def test_send_email_starts_tls_and_logs_in():
+    smtp = _send(smtp_username="user@example.com", smtp_password="app-password")
 
-    def _post(url, json, timeout=10):
-        calls.append(json["blocks"])
-        return _FakeResponse(200 if len(calls) == 1 else 500)
+    assert smtp.started_tls is True
+    assert smtp.login_args == ("user@example.com", "app-password")
 
-    with pytest.raises(RuntimeError):
-        post_to_slack(blocks, "https://hooks.slack.com/services/x", http_post=_post)
 
-    assert len(calls) == 2
+def test_send_email_sends_to_recipient_with_subject_and_html_body():
+    smtp = _send(
+        subject="BtoBマーケティング情報まとめ 2026-08-20",
+        html_body="<h1>まとめ</h1><p>本文</p>",
+        from_addr="from@example.com",
+        to_addr="to@example.com",
+    )
+
+    from_addr, to_addrs, raw_message = smtp.sent
+    assert from_addr == "from@example.com"
+    assert to_addrs == ["to@example.com"]
+
+    parsed = email.message_from_string(raw_message)
+    subject_parts = decode_header(parsed["Subject"])
+    subject = "".join(
+        part.decode(encoding or "ascii") if isinstance(part, bytes) else part
+        for part, encoding in subject_parts
+    )
+    assert subject == "BtoBマーケティング情報まとめ 2026-08-20"
+
+    html_part = parsed.get_payload()[0]
+    assert html_part.get_payload(decode=True).decode("utf-8") == "<h1>まとめ</h1><p>本文</p>"

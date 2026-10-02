@@ -1,14 +1,13 @@
 import argparse
-import json
 import logging
 import os
 import socket
 
 from .config import load_feeds, load_keywords
 from .dedup import dedupe_articles
-from .formatter import build_slack_blocks
+from .formatter import build_email_html
 from .gemini_summarizer import summarize_and_classify as gemini_summarize_and_classify
-from .notifier import post_to_slack
+from .notifier import send_email
 from .recency_filter import filter_by_recency
 from .relevance_filter import filter_by_source_keyword
 from .relevance_filter_ai import filter_by_relevance
@@ -27,7 +26,7 @@ MAX_ARTICLES_PER_RUN = 40
 MAX_ARTICLE_AGE_DAYS = 3
 
 
-def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) -> list[dict]:
+def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) -> str:
     keywords = load_keywords(config_paths["keywords"])
     feeds = load_feeds(config_paths["feeds"])
     state = load_state(config_paths["state"])
@@ -61,19 +60,28 @@ def run(config_paths: dict, secrets: dict, now_iso: str, dry_run: bool = False) 
         articles = apply_category_hint_fallback(articles)
 
     today = now_iso[:10]
-    blocks = build_slack_blocks(articles, today=today)
+    html_body = build_email_html(articles, today=today)
 
     if dry_run:
-        return blocks
+        return html_body
 
-    post_to_slack(blocks, secrets["slack_webhook_url"])
+    send_email(
+        subject=f"BtoBマーケティング情報まとめ {today}",
+        html_body=html_body,
+        from_addr=secrets["email_from"],
+        to_addr=secrets["email_to"],
+        smtp_host=secrets["smtp_host"],
+        smtp_port=secrets["smtp_port"],
+        smtp_username=secrets["smtp_username"],
+        smtp_password=secrets["smtp_password"],
+    )
 
     for article in articles:
         mark_seen(state, article.url, now_iso)
     state = prune_old(state, now=now_iso, days=30)
     save_state(config_paths["state"], state)
 
-    return blocks
+    return html_body
 
 
 def main() -> None:
@@ -108,9 +116,11 @@ def main() -> None:
     else:
         logger.info("GEMINI_API_KEY not set; running without Gemini-based relevance filtering/summarization")
 
-    slack_webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
-    if not args.dry_run and not slack_webhook_url:
-        parser.error("SLACK_WEBHOOK_URL is required unless --dry-run is used")
+    smtp_username = os.environ.get("SMTP_USERNAME")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    email_to = os.environ.get("EMAIL_TO")
+    if not args.dry_run and not (smtp_username and smtp_password and email_to):
+        parser.error("SMTP_USERNAME, SMTP_PASSWORD and EMAIL_TO are required unless --dry-run is used")
 
     config_paths = {
         "keywords": "config/keywords.yaml",
@@ -122,13 +132,18 @@ def main() -> None:
         "google_cse_id": google_cse_id,
         "anthropic_client": anthropic_client,
         "gemini_client": gemini_client,
-        "slack_webhook_url": slack_webhook_url,
+        "smtp_host": os.environ.get("SMTP_HOST", "smtp.gmail.com"),
+        "smtp_port": int(os.environ.get("SMTP_PORT", "587")),
+        "smtp_username": smtp_username,
+        "smtp_password": smtp_password,
+        "email_from": os.environ.get("EMAIL_FROM", smtp_username),
+        "email_to": email_to,
     }
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    blocks = run(config_paths, secrets, now_iso, dry_run=args.dry_run)
+    html_body = run(config_paths, secrets, now_iso, dry_run=args.dry_run)
     if args.dry_run:
-        print(json.dumps(blocks, ensure_ascii=False, indent=2))
+        print(html_body)
 
 
 if __name__ == "__main__":

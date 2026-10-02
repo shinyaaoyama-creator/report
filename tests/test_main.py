@@ -5,6 +5,15 @@ import pytest
 from src.collector import main as main_module
 from src.collector.models import Article
 
+_EMAIL_SECRETS = {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "user@example.com",
+    "smtp_password": "app-password",
+    "email_from": "from@example.com",
+    "email_to": "to@example.com",
+}
+
 
 def _setup_configs(tmp_path):
     keywords_path = tmp_path / "keywords.yaml"
@@ -20,7 +29,7 @@ def _setup_configs(tmp_path):
     }
 
 
-def test_run_dry_run_does_not_post_or_save_state(tmp_path, monkeypatch):
+def test_run_dry_run_does_not_send_email_or_save_state(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
 
     monkeypatch.setattr(
@@ -38,18 +47,18 @@ def test_run_dry_run_does_not_post_or_save_state(tmp_path, monkeypatch):
         ],
     )
 
-    posted = {"called": False}
-    monkeypatch.setattr(main_module, "post_to_slack", lambda blocks, url: posted.update(called=True))
+    sent = {"called": False}
+    monkeypatch.setattr(main_module, "send_email", lambda **kwargs: sent.update(called=True))
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
-        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), "slack_webhook_url": "https://hooks.slack.com/x"},
+        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), **_EMAIL_SECRETS},
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
     )
 
-    assert posted["called"] is False
-    assert any("要約" in b.get("text", {}).get("text", "") for b in blocks if b["type"] == "section")
+    assert sent["called"] is False
+    assert "要約" in html_body
 
     state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
     assert state_after == {}
@@ -83,33 +92,29 @@ def test_run_caps_articles_per_run(tmp_path, monkeypatch):
 
     captured = {}
     monkeypatch.setattr(
-        main_module, "post_to_slack", lambda blocks, url: captured.update(blocks=blocks)
+        main_module, "send_email", lambda **kwargs: captured.update(html_body=kwargs["html_body"])
     )
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
         secrets={
             "google_api_key": "k",
             "google_cse_id": "c",
             "anthropic_client": object(),
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=False,
     )
 
-    article_sections = [
-        b for b in captured["blocks"]
-        if b["type"] == "section" and "https://example.com/" in b["text"]["text"]
-    ]
-    assert len(article_sections) == main_module.MAX_ARTICLES_PER_RUN == 40
-    assert blocks == captured["blocks"]
+    assert captured["html_body"].count("https://example.com/") == main_module.MAX_ARTICLES_PER_RUN == 40
+    assert html_body == captured["html_body"]
 
     state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
     assert len(state_after) == 40
 
 
-def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
+def test_run_live_sends_email_and_updates_state(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
 
     monkeypatch.setattr(
@@ -127,17 +132,17 @@ def test_run_live_posts_and_updates_state(tmp_path, monkeypatch):
         ],
     )
 
-    posted = {"called": False}
-    monkeypatch.setattr(main_module, "post_to_slack", lambda blocks, url: posted.update(called=True))
+    sent = {"called": False}
+    monkeypatch.setattr(main_module, "send_email", lambda **kwargs: sent.update(called=True))
 
     main_module.run(
         config_paths,
-        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), "slack_webhook_url": "https://hooks.slack.com/x"},
+        secrets={"google_api_key": "k", "google_cse_id": "c", "anthropic_client": object(), **_EMAIL_SECRETS},
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=False,
     )
 
-    assert posted["called"] is True
+    assert sent["called"] is True
 
     state_after = json.loads((tmp_path / "seen_articles.json").read_text(encoding="utf-8"))
     assert "https://example.com/a" in state_after
@@ -166,23 +171,20 @@ def test_run_skips_summarizer_when_anthropic_client_is_none(tmp_path, monkeypatc
 
     monkeypatch.setattr(main_module, "summarize_and_classify", _fail_if_called)
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
         secrets={
             "google_api_key": "k",
             "google_cse_id": "c",
             "anthropic_client": None,
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
     )
 
-    section_texts = "\n".join(
-        b["text"]["text"] for b in blocks if b["type"] == "section"
-    )
-    assert "https://example.com/a" in section_texts
-    assert "(要約なし)" in section_texts
+    assert "https://example.com/a" in html_body
+    assert "(要約なし)" in html_body
 
 
 def test_run_filters_out_articles_not_matching_their_feed_keyword(tmp_path, monkeypatch):
@@ -212,21 +214,20 @@ def test_run_filters_out_articles_not_matching_their_feed_keyword(tmp_path, monk
         ],
     )
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
         secrets={
             "google_api_key": "k",
             "google_cse_id": "c",
             "anthropic_client": None,
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
     )
 
-    section_texts = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
-    assert "https://example.com/a" in section_texts
-    assert "https://example.com/b" not in section_texts
+    assert "https://example.com/a" in html_body
+    assert "https://example.com/b" not in html_body
 
 
 def test_run_drops_stale_rss_articles(tmp_path, monkeypatch):
@@ -254,21 +255,20 @@ def test_run_drops_stale_rss_articles(tmp_path, monkeypatch):
         ],
     )
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
         secrets={
             "google_api_key": "k",
             "google_cse_id": "c",
             "anthropic_client": None,
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
     )
 
-    section_texts = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
-    assert "https://example.com/fresh" in section_texts
-    assert "https://example.com/stale" not in section_texts
+    assert "https://example.com/fresh" in html_body
+    assert "https://example.com/stale" not in html_body
 
 
 def test_run_uses_gemini_for_relevance_filter_and_summarization_when_provided(tmp_path, monkeypatch):
@@ -304,22 +304,21 @@ def test_run_uses_gemini_for_relevance_filter_and_summarization_when_provided(tm
 
     monkeypatch.setattr(main_module, "gemini_summarize_and_classify", _fake_gemini_summarize)
 
-    blocks = main_module.run(
+    html_body = main_module.run(
         config_paths,
         secrets={
             "google_api_key": "k",
             "google_cse_id": "c",
             "anthropic_client": None,
             "gemini_client": object(),
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
     )
 
     assert relevance_calls["called"] is True
-    section_texts = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
-    assert "Gemini要約" in section_texts
+    assert "Gemini要約" in html_body
 
 
 def test_run_applies_relevance_filter_before_capping(tmp_path, monkeypatch):
@@ -348,7 +347,7 @@ def test_run_applies_relevance_filter_before_capping(tmp_path, monkeypatch):
             "google_cse_id": "c",
             "anthropic_client": None,
             "gemini_client": object(),
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
@@ -394,7 +393,7 @@ def test_run_keeps_highest_relevance_score_articles_when_capping(tmp_path, monke
             "google_cse_id": "c",
             "anthropic_client": None,
             "gemini_client": object(),
-            "slack_webhook_url": "https://hooks.slack.com/x",
+            **_EMAIL_SECRETS,
         },
         now_iso="2026-08-20T00:00:00+00:00",
         dry_run=True,
@@ -404,7 +403,7 @@ def test_run_keeps_highest_relevance_score_articles_when_capping(tmp_path, monke
     assert kept_indices == set(range(20, 60))
 
 
-def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
+def test_run_propagates_send_failure_and_leaves_state_unsaved(tmp_path, monkeypatch):
     config_paths = _setup_configs(tmp_path)
     state_before = (tmp_path / "seen_articles.json").read_text(encoding="utf-8")
 
@@ -432,10 +431,10 @@ def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypa
         ],
     )
 
-    def _failing_post(blocks, url):
-        raise RuntimeError("HTTP 400")
+    def _failing_send(**kwargs):
+        raise RuntimeError("SMTP error")
 
-    monkeypatch.setattr(main_module, "post_to_slack", _failing_post)
+    monkeypatch.setattr(main_module, "send_email", _failing_send)
 
     with pytest.raises(RuntimeError):
         main_module.run(
@@ -444,7 +443,7 @@ def test_run_propagates_post_failure_and_leaves_state_unsaved(tmp_path, monkeypa
                 "google_api_key": "k",
                 "google_cse_id": "c",
                 "anthropic_client": object(),
-                "slack_webhook_url": "https://hooks.slack.com/x",
+                **_EMAIL_SECRETS,
             },
             now_iso="2026-08-20T00:00:00+00:00",
             dry_run=False,
